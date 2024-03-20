@@ -23,7 +23,6 @@ class SudokuSolver():
                     for w in range(3):
                         t_row.append(c_sudoku[x*3 + z][y*3 + w])
                 t_three_x_three.append(t_row)
-        # print(np.array(t_three_x_three))
         return np.array(t_three_x_three)
 
     # Return remaining missing number
@@ -32,70 +31,28 @@ class SudokuSolver():
         result = np.in1d(arr,row)
         index = np.where(~result)[0]+1
         index_zero = np.where(row == 0)[0]
-        if get_all:
-            if len(index) > 0:
-                return True,index,None
-            else:
-                return False,None,None
-        if len(index_zero) == 1:
-            return True,index[0],index_zero[0]
+        if len(index) > 0:
+            return True,index,None
         return False,None,None
+
     
 
-    def update_sudoku(self,pattern,num,row_id,col_id):
+    def update_sudoku(self,num,row_id,col_id):
         self.update_count +=1 
-        # print(f"Pattern What {pattern} with count {self.update_count}")
-        if pattern == 1:
-            self.copy_sudoku[row_id][col_id] = num
-            self.transpose_sudoku[col_id][row_id] = num
-            self.three_x_three_sudoku[col_id//3 + row_id//3 *3][row_id%3 * 3 + col_id % 3] = num
-            # print(f"Written index {row_id},{col_id}")
-        elif pattern == 2:
-            self.transpose_sudoku[row_id][col_id] = num
-            self.copy_sudoku[col_id][row_id] = num
-            self.three_x_three_sudoku[row_id//3 + col_id//3 *3][col_id%3 * 3 + row_id % 3] = num
-            # print(f"Written index {col_id},{row_id}")
-        elif pattern == 3:
-            self.three_x_three_sudoku[row_id][col_id] = num
-            self.copy_sudoku[row_id//3 * 3 + col_id // 3][row_id%3 *3 + col_id %3] = num
-            self.transpose_sudoku[row_id%3 *3 + col_id %3][row_id//3 * 3 + col_id // 3] = num
-        # print("#######")
-        # print(self.copy_sudoku,"\n\n",self.transpose_sudoku,"\n\n",self.three_x_three_sudoku)
-        # print("#######")
-        # print()
-        # user_input = input("wait for you")
-
-    def check_missing_one(self):
-        for row_index,row in enumerate(self.copy_sudoku):
-            check_true,remaing_num,index = self.check_row(row)
-            if check_true:
-                self.update_sudoku(1,remaing_num,row_index,index)
-        for row_index,row in enumerate(self.transpose_sudoku):
-            check_true,remaing_num,index = self.check_row(row)
-            if check_true:
-                self.update_sudoku(2,remaing_num,row_index,index)
-        for row_index,row in enumerate(self.three_x_three_sudoku):
-            check_true,remaing_num,index = self.check_row(row)
-            if check_true:
-                self.update_sudoku(3,remaing_num,row_index,index)
+        self.copy_sudoku[row_id][col_id] = num
+        self.transpose_sudoku[col_id][row_id] = num
+        self.three_x_three_sudoku[col_id//3 + row_id//3 *3][row_id%3 * 3 + col_id % 3] = num
 
     def check_repeating(self):
         pass
 
     def find_possible_for_index(self,row_id,col_id):
-        check_normal,normal_available,_ = self.check_row(self.copy_sudoku[row_id],True)
-        check_transpose,transpose_available,_ = self.check_row(self.transpose_sudoku[col_id],True)
-        check_three_x_three,three_x_three_available,_ = self.check_row(self.three_x_three_sudoku[col_id//3 + row_id//3 *3],True)
+        check_normal,normal_available,_ = self.check_row(self.copy_sudoku[row_id])
+        check_transpose,transpose_available,_ = self.check_row(self.transpose_sudoku[col_id])
+        check_three_x_three,three_x_three_available,_ = self.check_row(self.three_x_three_sudoku[col_id//3 + row_id//3 *3])
         
         if check_normal and check_transpose and check_three_x_three:
             common_index = np.intersect1d(normal_available,np.intersect1d(transpose_available,three_x_three_available))
-            # print("*****************")
-            # print(row_id,col_id)
-            # print(normal_available)
-            # print(transpose_available)
-            # print(three_x_three_available)
-            # print("*****************")
-            
             return True,common_index
         else:
             return False,None
@@ -108,16 +65,13 @@ class SudokuSolver():
                 check_true,normal_possible = self.find_possible_for_index(row_id,col_id)
                 if check_true:
                     if len(normal_possible) == 1:
-                        # print(normal_possible)
-                        self.update_sudoku(1,normal_possible[0],row_id,col_id)
-                        
+                        self.update_sudoku(normal_possible[0],row_id,col_id)
                 else:
                     continue
     def solve(self) -> np.ndarray:
         start_time = time.time()
         count_try = 0
         while not self.done_solve:
-            self.check_missing_one()
             self.find_possible()
             if not np.any(self.copy_sudoku == 0):
                 self.done_solve = True
@@ -127,8 +81,6 @@ class SudokuSolver():
             if count_try == 10:
                 print("Break due to out of search")
                 break
-            
-            # user_input = input("wait for you")
 
         end_time = time.time()
         print(f"Time taken to solve {end_time - start_time}")
@@ -148,18 +100,3 @@ if __name__ == '__main__':
     sudoku_solver = SudokuSolver(sudoku)
     print(sudoku_solver.solve())
 
-
-
-    
-
-
-"""
-1 5
-1 3 4 6 9
-1 2 5 6 7 8 
-
-2 3 6
-2 3 4 7
-2 3 4 6 7
-
-"""
