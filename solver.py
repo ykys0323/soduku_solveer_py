@@ -13,6 +13,10 @@ class SudokuSolver():
         self.done_solve = False
         self.update_count = 0
         self.all_index_possible = []
+        self.visited = []
+        self.recorded_sudoku = []
+        self.layer = 0
+        
 
     #convert three time three array to 1 row
     def convert_to_three_x_three(self,c_sudoku):
@@ -37,7 +41,6 @@ class SudokuSolver():
         return False,None,None
 
     
-
     def update_sudoku(self,num,row_id,col_id):
         if self.copy_sudoku[row_id][col_id] != 0:
             print("Wasting power")
@@ -46,8 +49,7 @@ class SudokuSolver():
         self.transpose_sudoku[col_id][row_id] = num
         self.three_x_three_sudoku[col_id//3 + row_id//3 *3][row_id%3 * 3 + col_id % 3] = num
 
-    def check_repeating(self):
-        pass
+
     def check_impossible_for_row(self,pattern,row_id):
         for i in range(9):
             count = 0
@@ -76,15 +78,20 @@ class SudokuSolver():
                             count+=1
             len_of_index = 0
             if pattern == 1:
+                if self.copy_sudoku[row_id][found_index] != 0:
+                    continue
                 len_of_index = len(self.all_index_possible[row_id][found_index])
             elif pattern == 2:
+                if self.copy_sudoku[found_index][row_id] != 0:
+                    continue
                 len_of_index = len(self.all_index_possible[found_index][row_id])
             else:
+                if self.copy_sudoku[found_index//3 + row_id//3 *3][row_id%3 * 3 + found_index % 3] != 0:
+                    continue
                 len_of_index = len(self.all_index_possible[found_index//3 + row_id//3 *3][row_id%3 * 3 + found_index % 3])
+            
             if count == 1 and len_of_index > 1:
-                # if pattern == 3:
-                #     print(f"Found with row {row_id} col {found_index} value {i+1}")
-                #     print(row_id//3 *3 + found_index//3,found_index%3 + row_id%3 *3)
+
                 return True,found_index,i+1
         return False,None,None
             
@@ -92,9 +99,10 @@ class SudokuSolver():
         check_normal,normal_available,_ = self.check_row(self.copy_sudoku[row_id])
         check_transpose,transpose_available,_ = self.check_row(self.transpose_sudoku[col_id])
         check_three_x_three,three_x_three_available,_ = self.check_row(self.three_x_three_sudoku[col_id//3 + row_id//3 *3])
-
         if check_normal and check_transpose and check_three_x_three:
             common_index = np.intersect1d(normal_available,np.intersect1d(transpose_available,three_x_three_available))
+            if len(common_index) == 0:
+                print("Equal 0")
             return True,common_index
         else:
             return False,None
@@ -119,30 +127,75 @@ class SudokuSolver():
         return cant_find_any
     
     def find_another_possible(self):
+        cant_find_any = True
         for row_id in range(9):
             check_possible,col_id,num_value = self.check_impossible_for_row(1,row_id)
             if check_possible:
+                cant_find_any = False
                 self.update_sudoku(num_value,row_id,col_id)
             check_possible,col_id,num_value = self.check_impossible_for_row(2,row_id)
             if check_possible:
+                cant_find_any = False
                 self.update_sudoku(num_value,col_id,row_id)
             check_possible,col_id,num_value = self.check_impossible_for_row(3,row_id)
             if check_possible:
+                cant_find_any = False
                 self.update_sudoku(num_value, row_id//3 *3 + col_id//3,col_id%3 + row_id%3 *3)
-                pass
+        return cant_find_any
+    
+    def check_possible(self):
+        # print("################")
+        self.new_able_index = []
+        for row_id in range(9):
+            for col_id in range(9):
+                if self.copy_sudoku[row_id][col_id] != 0:
+                    continue
+                check_normal,normal_available,_ = self.check_row(self.copy_sudoku[row_id])
+                check_transpose,transpose_available,_ = self.check_row(self.transpose_sudoku[col_id])
+                check_three_x_three,three_x_three_available,_ = self.check_row(self.three_x_three_sudoku[col_id//3 + row_id//3 *3])
+                # print(f"{row_id},{col_id} {check_normal} {check_transpose} {check_three_x_three}")
+                if check_normal and check_transpose and check_three_x_three:
+                    common_index = np.intersect1d(normal_available,np.intersect1d(transpose_available,three_x_three_available))
+                    if len(common_index) == 0:
+                        return False
+                    self.new_able_index.append(common_index)
+                    # return True,common_index
+                    # print(f"{row_id},{col_id} {common_index} {normal_available} {transpose_available} {three_x_three_available}")
+        return True
+        # print("################")
+
+    def start_guessing(self):
+        still_possible = self.check_possible()
+        if still_possible:
+            self.layer +=1
+            self.backup_sudoku()
+            
+        else:
+            pass
+    def replace_sudoku(self,previous_sudoku):
+        self.copy_sudoku = previous_sudoku
+        self.transpose_sudoku = previous_sudoku.T
+        self.three_x_three_sudoku = self.convert_to_three_x_three(previous_sudoku)
+    def backup_sudoku(self):
+        self.recorded_sudoku.append(self.copy_sudoku)
 
     def solve(self) -> np.ndarray:
         start_time = time.time()
         count_try = 0
         while not self.done_solve:
+            second_not_possible = False
             not_possible = self.find_possible()
             if not np.any(self.copy_sudoku == 0):
                 self.done_solve = True
                 self.result = self.copy_sudoku
                 print(f"Fill total {self.update_count}")
             if not_possible:
-                self.find_another_possible()
+                second_not_possible = self.find_another_possible()
                 # print("######")
+
+            if not_possible and second_not_possible:
+                # print(f"Not any possible starting {count_try}")
+                self.start_guessing()
             count_try += 1
             if count_try == 81:
                 print("Break due to out of search")
