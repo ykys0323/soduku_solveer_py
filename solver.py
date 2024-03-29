@@ -16,6 +16,8 @@ class SudokuSolver():
         self.visited = []
         self.recorded_sudoku = []
         self.layer = 0
+        self.out_of_guess = False
+        self.possibles = []
         
 
     #convert three time three array to 1 row
@@ -158,24 +160,73 @@ class SudokuSolver():
                     common_index = np.intersect1d(normal_available,np.intersect1d(transpose_available,three_x_three_available))
                     if len(common_index) == 0:
                         return False
-                    self.new_able_index.append(common_index)
+                    self.new_able_index.append((common_index,(row_id,col_id)))
+                    
                     # return True,common_index
                     # print(f"{row_id},{col_id} {common_index} {normal_available} {transpose_available} {three_x_three_available}")
         return True
         # print("################")
+    def get_next_possible(self):
+        if self.layer == 0:
+            return False,None
+        for possible in self.possibles[self.layer-1]:
+            if possible in self.visited[self.layer-1]:
+                continue
+            else:
+                return True,possible
+        return False,None
+    
+    def revert_previous_sudoko(self):
+        self.replace_sudoku(self.recorded_sudoku[self.layer-1])
+    
+    def update_next_visiting(self,next_visiting):
+        self.update_sudoku(next_visiting%10,next_visiting//100,next_visiting//10%10)
+        self.visited[self.layer-1].append(next_visiting)
+    def convert_possible_format(self):
+        sorted_array = sorted(self.new_able_index,key=lambda x:len(x[0]))
+        new_possbiles = []
+        for arr in sorted_array:
+            for possible_number in arr[0]:
+                new_possbiles.append(arr[1][0]*100+arr[1][1]*10+possible_number)
+        self.possibles.append(new_possbiles)
+        # for possible in self.new_able_index:
+    def remove_last_index(self):
+        self.possibles = self.possibles[:-1]
+        self.recorded_sudoku = self.recorded_sudoku[:-1]
+        self.visited = self.visited[:-1]
 
     def start_guessing(self):
         still_possible = self.check_possible()
+        if self.out_of_guess:
+            return
         if still_possible:
             self.layer +=1
+            self.visited.append([])
             self.backup_sudoku()
-            
+            self.convert_possible_format()
+            _ , next_visiting = self.get_next_possible()
+            self.update_next_visiting(next_visiting)
         else:
-            pass
+            check_possible_guess, next_visiting = self.get_next_possible()
+            if check_possible_guess:
+                self.revert_previous_sudoko()
+                self.update_next_visiting(next_visiting)
+            else:
+                if self.layer > 0:
+                    self.remove_last_index()
+                    # self.revert_previous_sudoko()
+                self.layer-=1
+
+        if self.layer >= 0:
+            self.out_of_guess = True
+
+
+
     def replace_sudoku(self,previous_sudoku):
         self.copy_sudoku = previous_sudoku
         self.transpose_sudoku = previous_sudoku.T
         self.three_x_three_sudoku = self.convert_to_three_x_three(previous_sudoku)
+
     def backup_sudoku(self):
         self.recorded_sudoku.append(self.copy_sudoku)
 
