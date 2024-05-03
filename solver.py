@@ -103,8 +103,8 @@ class SudokuSolver():
         check_three_x_three,three_x_three_available,_ = self.check_row(self.three_x_three_sudoku[col_id//3 + row_id//3 *3])
         if check_normal and check_transpose and check_three_x_three:
             common_index = np.intersect1d(normal_available,np.intersect1d(transpose_available,three_x_three_available))
-            if len(common_index) == 0:
-                print("Equal 0")
+            # if len(common_index) == 0:
+            #     print("Equal 0")
             return True,common_index
         else:
             return False,None
@@ -177,7 +177,10 @@ class SudokuSolver():
         return False,None
     
     def revert_previous_sudoko(self):
-        self.replace_sudoku(self.recorded_sudoku[self.layer-1])
+        print("revert start")
+        print(self.layer)
+        print(self.recorded_sudoku[self.layer-1])
+        self.replace_sudoku(self.recorded_sudoku[self.layer-1].copy())
     
     def update_next_visiting(self,next_visiting):
         self.update_sudoku(next_visiting%10,next_visiting//100,next_visiting//10%10)
@@ -197,27 +200,39 @@ class SudokuSolver():
 
     def start_guessing(self):
         still_possible = self.check_possible()
+        print("Guess")
         if self.out_of_guess:
             return
         if still_possible:
+            print("Go in layer")
+            print((self.copy_sudoku))
             self.layer +=1
             self.visited.append([])
             self.backup_sudoku()
+            print(self.recorded_sudoku)
             self.convert_possible_format()
             _ , next_visiting = self.get_next_possible()
             self.update_next_visiting(next_visiting)
+            print((self.copy_sudoku))
+            print(self.visited)
         else:
-            check_possible_guess, next_visiting = self.get_next_possible()
-            if check_possible_guess:
-                self.revert_previous_sudoko()
-                self.update_next_visiting(next_visiting)
-            else:
-                if self.layer > 0:
+            
+            while self.layer > 0:
+                check_possible_guess, next_visiting = self.get_next_possible()
+                if check_possible_guess:
+                    print("NExt possible")
+                    self.revert_previous_sudoko()
+                    print((self.copy_sudoku))
+                    
+                    self.update_next_visiting(next_visiting)
+                    print(self.visited)
+                    break
+                else:
+                    print("end possible")
+                    self.layer-=1
                     self.remove_last_index()
-                    # self.revert_previous_sudoko()
-                self.layer-=1
 
-        if self.layer >= 0:
+        if self.layer <= 0:
             self.out_of_guess = True
 
 
@@ -228,7 +243,7 @@ class SudokuSolver():
         self.three_x_three_sudoku = self.convert_to_three_x_three(previous_sudoku)
 
     def backup_sudoku(self):
-        self.recorded_sudoku.append(self.copy_sudoku)
+        self.recorded_sudoku.append(self.copy_sudoku.copy())
 
     def solve(self) -> np.ndarray:
         start_time = time.time()
@@ -248,7 +263,7 @@ class SudokuSolver():
                 # print(f"Not any possible starting {count_try}")
                 self.start_guessing()
             count_try += 1
-            if count_try == 81:
+            if count_try == 200:
                 print("Break due to out of search")
                 print(self.copy_sudoku)
                 # print(self.all_index_possible)
@@ -258,15 +273,15 @@ class SudokuSolver():
         print(f"Time taken to solve {end_time - start_time}")
         return self.result
 
-sudoku = np.array( [[0,0,0,8,0,3,0,0,0],
-                    [0,0,9,0,4,0,2,0,0],
-                    [0,5,0,0,0,0,0,4,0],
-                    [0,9,0,0,0,0,4,0,0],
-                    [0,4,0,0,2,1,0,0,8],
-                    [1,0,6,0,0,8,0,0,0],
-                    [6,0,0,1,0,0,0,8,5],
-                    [0,0,0,0,0,0,0,0,0],
-                    [0,2,0,0,3,6,0,0,0]])
+sudoku = np.array( [[0,6,3,5,0,9,2,0,0],
+                    [7,0,0,0,0,0,9,0,0],
+                    [0,0,0,0,0,7,0,6,0],
+                    [1,3,0,0,0,0,6,2,0],
+                    [5,7,0,0,0,0,1,0,9],
+                    [0,0,2,0,0,0,0,0,0],
+                    [0,0,1,0,0,0,0,0,0],
+                    [0,4,0,0,0,5,0,0,3],
+                    [0,0,0,2,0,0,0,7,0]])
 
 if __name__ == '__main__':
     sudoku_solver = SudokuSolver(sudoku)
